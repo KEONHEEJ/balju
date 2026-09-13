@@ -158,24 +158,39 @@ li{border-bottom:1px solid var(--rule)}
 }
 .step button:active{background:var(--g-bg)}
 .step button:focus-visible{outline:2px solid var(--g);outline-offset:-2px}
-.mid{
-  position:relative;min-width:52px;display:flex;align-items:center;justify-content:center;
-  border-left:1px solid var(--rule);border-right:1px solid var(--rule);padding:9px 4px;
+.num{
+  width:50px;min-width:0;border:0;
+  border-left:1px solid var(--rule);border-right:1px solid var(--rule);
+  background:transparent;text-align:center;
+  font-family:var(--mono);font-size:16px;font-weight:600;
+  font-variant-numeric:tabular-nums;color:var(--ink-3);padding:10px 2px;
 }
-.v{
-  font-family:var(--mono);font-size:.79rem;font-weight:600;font-variant-numeric:tabular-nums;
-  color:var(--ink-3);white-space:nowrap;
-}
-.mid.multi .v::after{content:"▾";font-size:.58rem;opacity:.6;margin-left:2px;vertical-align:1px}
-.mid select{
-  position:absolute;inset:0;width:100%;height:100%;
-  opacity:0;border:0;appearance:none;-webkit-appearance:none;
-  font-size:16px;cursor:pointer;
-}
+.num:focus{outline:2px solid var(--g);outline-offset:-2px;color:var(--ink)}
 .row.on .step{border-color:var(--g);background:var(--g-bg)}
-.row.on .mid{border-color:color-mix(in srgb, var(--g) 28%, transparent)}
-.row.on .v{color:var(--ink)}
+.row.on .num{color:var(--ink);border-color:color-mix(in srgb, var(--g) 26%, transparent)}
 .row.on .step button{color:var(--g)}
+
+/* 단위 칩 — 규격줄에 붙는다 */
+.specline{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:2px}
+.uni{
+  position:relative;display:inline-flex;align-items:center;flex:0 0 auto;
+  border:1px solid var(--rule-2);border-radius:6px;
+  padding:2px 16px 2px 7px;background:var(--card);
+}
+.uni .ut{font-family:var(--mono);font-size:.71rem;font-weight:600;color:var(--ink-2);white-space:nowrap}
+.uni::after{
+  content:"▾";position:absolute;right:5px;top:50%;transform:translateY(-50%);
+  font-size:.55rem;color:var(--ink-3);pointer-events:none;
+}
+.uni.single{padding-right:7px}
+.uni.single::after{content:none}
+.uni select{
+  position:absolute;inset:0;width:100%;height:100%;
+  opacity:0;border:0;appearance:none;-webkit-appearance:none;font-size:16px;cursor:pointer;
+}
+.uni:focus-within{outline:2px solid var(--g);outline-offset:1px}
+.row.on .uni{border-color:var(--g);background:var(--g-bg)}
+.row.on .uni .ut{color:var(--g)}
 
 /* ---------- custom rows ---------- */
 .add{display:flex;flex-wrap:wrap;gap:8px;margin:13px 0 0}
@@ -314,7 +329,7 @@ pre.empty{color:var(--ink-3);font-style:italic}
 const ITEMS = {
   meat: [[null, [
     ["사골",            "kg · 기준 20kg",            "kg|봉",            10],
-    ["양지",            "차돌양지 · 1덩이 ≈ 10kg",    "덩이|kg",           1],
+    ["양지",            "차돌양지 · 1박스 20kg",      "박스|kg",           1],
     ["목전지",          "돈목심 · 기준 2kg",          "kg",                5],
     ["민찌",            "돈민찌 · 기준 2kg",          "kg|g:500",          3, "(500g 씩 소분)"],
     ["삼겹살",          "kg · 기준 2kg",             "kg|덩이",            2],
@@ -347,8 +362,6 @@ const ITEMS = {
       ["오징어 피쉬볼",   "1kg × 10팩",                "팩|박스",             2],
       ["유부",           "1kg × 4 · 냉동 슬라이스",    "팩|박스",             2],
       ["레몬그라스",      "1kg × 10 · 홀 냉동",        "팩|kg",               3],
-      ["짜조",           "팩",                        "팩|박스",            10],
-      ["치킨까스",       "팩",                        "팩|박스",             1],
     ]],
     ["면 · 쌀", [
       ["반포코 쌀국수",   "비치치 · 500g × 20p / 박스","박스|봉",             3],
@@ -394,8 +407,10 @@ const ITEMS = {
   ],
 
   etc: [
-    ["빵", [
+    ["빵 · 냉동", [
       ["반미빵",         "박스 · 20개",               "박스|개",             1],
+      ["짜조",           "팩",                        "팩|박스",            10],
+      ["치킨까스",       "팩",                        "팩|박스",             1],
     ]],
     ["음료", [
       ["콜라",           "박스",                      "박스|캔",             1],
@@ -528,61 +543,95 @@ function build(){
   });
 }
 
-/* ---- 스테퍼 ---- */
-function stepper(opts){
-  // opts: units[], get() -> [n,ui] | null, set(n,ui), label
-  const box = document.createElement("div");
-  box.className = "step";
+/* ---- 수량 조절기 : [−][숫자][+] + 규격줄의 단위 칩 ---- */
+function control(opts){
+  // opts: units, label, fallback() -> [n,ui], get() -> [n,ui]|null, set(n,ui)
+  const step = document.createElement("div");
+  step.className = "step";
 
-  const minus = document.createElement("button");
-  minus.type = "button"; minus.textContent = "−";
-  minus.setAttribute("aria-label", opts.label+" 줄이기");
+  const mi = document.createElement("button");
+  mi.type = "button"; mi.textContent = "−";
+  mi.setAttribute("aria-label", opts.label+" 줄이기");
 
-  const mid = document.createElement("div");
-  mid.className = "mid" + (opts.units.length > 1 ? " multi" : "");
-  const v = document.createElement("span");
-  v.className = "v";
-  mid.appendChild(v);
+  const num = document.createElement("input");
+  num.type = "text"; num.className = "num";
+  num.inputMode = "decimal"; num.autocomplete = "off";
+  num.setAttribute("aria-label", opts.label+" 수량 (직접 입력 가능)");
+
+  const pl = document.createElement("button");
+  pl.type = "button"; pl.textContent = "+";
+  pl.setAttribute("aria-label", opts.label+" 늘리기");
+
+  step.append(mi, num, pl);
+
+  const uni = document.createElement("span");
+  uni.className = "uni" + (opts.units.length > 1 ? "" : " single");
+  const ut = document.createElement("span");
+  ut.className = "ut";
+  uni.appendChild(ut);
 
   let sel = null;
   if(opts.units.length > 1){
     sel = document.createElement("select");
     sel.setAttribute("aria-label", opts.label+" 단위");
-    opts.units.forEach((u,i)=>{
+    opts.units.forEach((u, i)=>{
       const o = document.createElement("option");
       o.value = String(i); o.textContent = u.u;
       sel.appendChild(o);
     });
-    mid.appendChild(sel);
+    uni.appendChild(sel);
   }
 
-  const plus = document.createElement("button");
-  plus.type = "button"; plus.textContent = "+";
-  plus.setAttribute("aria-label", opts.label+" 늘리기");
-
-  box.append(minus, mid, plus);
-
   const paint = ()=>{
-    const cur = opts.get();
-    const [n, ui] = cur || opts.fallback();
-    v.textContent = fmt(n) + opts.units[ui].u;
+    const [n, ui] = opts.get() || opts.fallback();
+    if(document.activeElement !== num) num.value = fmt(n);
+    ut.textContent = opts.units[ui].u;
     if(sel) sel.value = String(ui);
   };
+
+  /* 1000g 이상은 kg 으로 */
+  function tidy(n, ui){
+    if(opts.units[ui].u === "g" && n >= 1000){
+      const k = opts.units.findIndex(x=> x.u === "kg");
+      if(k >= 0) return [Math.round(n / 1000 * 1000) / 1000, k];
+    }
+    return [n, ui];
+  }
+  const commit = (n, ui)=>{ const t = tidy(n, ui); opts.set(t[0], t[1]); };
+  const curUi = ()=> (opts.get() || opts.fallback())[1];
 
   const bump = dir => e=>{
     e.preventDefault(); e.stopPropagation();
     const has = opts.get();
-    if(!has && dir < 0) return;            // 안 담은 것에 − 는 무시
+    if(!has && dir < 0) return;               // 안 담은 것에 − 는 무시
     const cur = has || opts.fallback();
-    const ui = cur[1], st = opts.units[ui].step;
+    const ui = cur[1];
     let n = cur[0];
-    if(has) n = Math.round((n + dir*st) * 1000) / 1000;   // 첫 + 는 기본값 그대로
-    opts.set(n, ui);
+    if(has) n = Math.round((n + dir * opts.units[ui].step) * 1000) / 1000;
+    commit(n, ui);
     paint();
   };
-  minus.addEventListener("click", bump(-1));
-  plus.addEventListener("click", bump(1));
+  mi.addEventListener("click", bump(-1));
+  pl.addEventListener("click", bump(1));
 
+  /* 직접 입력 */
+  num.addEventListener("click", e=> e.stopPropagation());
+  num.addEventListener("focus", ()=> setTimeout(()=>{ try{ num.select(); }catch(e){} }, 0));
+  num.addEventListener("input", ()=>{
+    const clean = num.value.replace(/[^\d.]/g, "").replace(/(\..*)\./g, "$1");
+    if(clean !== num.value) num.value = clean;
+    const n = parseFloat(clean);
+    if(n > 0) opts.set(Math.round(n * 1000) / 1000, curUi());   // 입력 중엔 변환 안 함
+  });
+  num.addEventListener("blur", ()=>{
+    const n = parseFloat(num.value);
+    if(n > 0) commit(n, curUi());
+    else opts.set(0, curUi());                // 비우면 목록에서 뺀다
+    paint();
+  });
+  num.addEventListener("keydown", e=>{ if(e.key === "Enter"){ e.preventDefault(); num.blur(); } });
+
+  /* 단위 바꾸기 — kg ↔ g 는 숫자도 환산 */
   if(sel){
     sel.addEventListener("click", e=> e.stopPropagation());
     sel.addEventListener("change", e=>{
@@ -591,16 +640,15 @@ function stepper(opts){
       const from = opts.units[cur[1]], to = opts.units[+sel.value];
       let n = cur[0];
       if(from.u === "kg" && to.u === "g") n = n * 1000;
-      else if(from.u === "g" && to.u === "kg") n = Math.round(n / 1000 * 1000) / 1000;
+      else if(from.u === "g" && to.u === "kg") n = n / 1000;
       else if(n < to.step) n = to.step;
-      opts.set(Math.round(n*1000)/1000, +sel.value);
+      opts.set(Math.round(n * 1000) / 1000, +sel.value);   // 고른 단위는 그대로 존중
       paint();
     });
   }
 
-  box.paint = paint;
   paint();
-  return box;
+  return { step, uni, paint };
 }
 
 function rowOf(it){
@@ -612,47 +660,50 @@ function rowOf(it){
   const tick = document.createElement("input");
   tick.type = "checkbox"; tick.className = "tick"; tick.id = "t-"+it.id;
 
-  const meta = document.createElement("span");
-  meta.className = "meta";
-  const nm = document.createElement("span");
-  nm.className = "nm"; nm.textContent = it.name;
-  const spec = document.createElement("span");
-  spec.className = "spec"; spec.textContent = it.spec;
-  const echo = document.createElement("span");
-  echo.className = "echo"; echo.hidden = true;
-  meta.append(nm, spec, echo);
-
-  const st = stepper({
+  const c = control({
     units: it.units,
     label: it.name,
     fallback: ()=> [it.def, 0],
     get: ()=> state.picked[it.id] || null,
     set: (n, ui)=>{
-      if(n <= 0){ delete state.picked[it.id]; }
-      else state.picked[it.id] = [n, ui];
+      if(n > 0) state.picked[it.id] = [n, ui];
+      else delete state.picked[it.id];
       sync(); save(); retally();
     },
   });
 
+  const meta = document.createElement("span");
+  meta.className = "meta";
+  const nm = document.createElement("span");
+  nm.className = "nm"; nm.textContent = it.name;
+  const line = document.createElement("span");
+  line.className = "specline";
+  const spec = document.createElement("span");
+  spec.className = "spec"; spec.textContent = it.spec;
+  line.append(c.uni, spec);
+  const echo = document.createElement("span");
+  echo.className = "echo"; echo.hidden = true;
+  meta.append(nm, line, echo);
+
   function sync(){
-    const on = !!state.picked[it.id];
-    tick.checked = on;
-    lab.classList.toggle("on", on);
-    if(on && (it.note || it.units[state.picked[it.id][1]].pre)){
+    const p = state.picked[it.id];
+    tick.checked = !!p;
+    lab.classList.toggle("on", !!p);
+    if(p && (it.note || it.units[p[1]].pre)){
       echo.hidden = false;
-      echo.textContent = "→ " + fullOf(it, state.picked[it.id][0], state.picked[it.id][1]);
+      echo.textContent = "→ " + fullOf(it, p[0], p[1]);
     }else echo.hidden = true;
   }
 
   tick.addEventListener("change", ()=>{
     if(tick.checked) state.picked[it.id] = [it.def, 0];
     else delete state.picked[it.id];
-    sync(); st.paint(); save(); retally();
+    sync(); c.paint(); save(); retally();
   });
 
-  lab.append(tick, meta, st);
+  lab.append(tick, meta, c.step);
   li.appendChild(lab);
-  li.sync = ()=>{ sync(); st.paint(); };
+  li.sync = ()=>{ sync(); c.paint(); };
   li.sync();
   return li;
 }
@@ -695,32 +746,37 @@ function drawExtra(gid){
     mark.style.cssText = "justify-self:center;font-family:var(--mono);color:var(--g);font-size:1rem;font-weight:600";
     mark.textContent = "＋";
 
+    const c = control({
+      units: gu,
+      label: row.name,
+      fallback: ()=> [row.n, Math.max(0, gu.findIndex(u=> u.u === row.u))],
+      get: ()=>{
+        const r = state.extra[gid][i];
+        return r ? [r.n, Math.max(0, gu.findIndex(u=> u.u === r.u))] : null;
+      },
+      set: (n, k)=>{
+        if(n > 0){ state.extra[gid][i] = { name: row.name, n, u: gu[k].u }; save(); retally(); }
+        else { state.extra[gid].splice(i, 1); save(); drawExtra(gid); retally(); }
+      },
+    });
+
     const meta = document.createElement("span");
     meta.className = "meta";
     const nm = document.createElement("span");
     nm.className = "nm"; nm.textContent = row.name;
+    const line = document.createElement("span");
+    line.className = "specline";
     const sp = document.createElement("span");
     sp.className = "spec"; sp.textContent = "직접 추가";
-    meta.append(nm, sp);
-
-    let ui = Math.max(0, gu.findIndex(u=> u.u === row.u));
-    const st = stepper({
-      units: gu, label: row.name,
-      fallback: ()=> [row.n, ui],
-      get: ()=>{ const r = state.extra[gid][i]; return r ? [r.n, Math.max(0, gu.findIndex(u=> u.u === r.u))] : null; },
-      set: (n, k)=>{
-        if(n <= 0){ state.extra[gid].splice(i,1); save(); drawExtra(gid); retally(); return; }
-        state.extra[gid][i] = { name: row.name, n, u: gu[k].u };
-        save(); retally();
-      },
-    });
+    line.append(c.uni, sp);
+    meta.append(nm, line);
 
     const x = document.createElement("button");
     x.type = "button"; x.className = "kill"; x.textContent = "×";
     x.setAttribute("aria-label", row.name+" 삭제");
-    x.addEventListener("click", ()=>{ state.extra[gid].splice(i,1); save(); drawExtra(gid); retally(); });
+    x.addEventListener("click", ()=>{ state.extra[gid].splice(i, 1); save(); drawExtra(gid); retally(); });
 
-    d.append(mark, meta, st);
+    d.append(mark, meta, c.step);
     const wrap = document.createElement("div");
     wrap.style.cssText = "display:grid;grid-template-columns:1fr 30px;align-items:center";
     wrap.append(d, x);
