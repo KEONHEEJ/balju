@@ -91,6 +91,55 @@ h1{font-family:var(--serif);font-weight:700;font-size:1.34rem;letter-spacing:-.0
 .tally .dot{width:8px;height:8px;border-radius:50%;background:var(--g);flex:0 0 auto}
 .tally .n{font-family:var(--mono);font-weight:600;font-size:.78rem;color:var(--g);font-variant-numeric:tabular-nums}
 
+/* ---------- 탭 : 시재 / 발주 ---------- */
+.tabs{
+  display:flex;gap:4px;margin:11px 0 0;padding:3px;
+  background:var(--card);border:1px solid var(--rule);border-radius:12px;
+}
+.tabs button{
+  flex:1 1 0;display:flex;align-items:center;justify-content:center;gap:7px;
+  font:inherit;font-size:.9rem;font-weight:600;padding:10px 6px;
+  border:0;border-radius:9px;background:transparent;color:var(--ink-3);cursor:pointer;
+}
+.tabs button[aria-selected="true"]{background:var(--ink);color:var(--paper)}
+.tabs button:focus-visible{outline:2px solid var(--jade);outline-offset:2px}
+.tabs .tn{
+  font-family:var(--mono);font-size:.73rem;font-weight:600;
+  padding:1px 7px;border-radius:999px;
+  background:var(--rule);color:var(--ink-2);font-variant-numeric:tabular-nums;
+}
+.tabs button[aria-selected="true"] .tn{background:var(--paper);color:var(--ink)}
+
+/* 모드에 따라 행의 구성이 바뀐다 */
+.mode-stock .tick,
+.mode-stock .step,
+.mode-stock .specline,
+.mode-stock .echo,
+.mode-stock .mark,
+.mode-stock .add{display:none}
+.mode-stock .row{grid-template-columns:minmax(0,1fr) auto;min-height:54px}
+.mode-order .stk-lg{display:none}
+
+/* 시재 전용 큰 입력칸 */
+.stk-lg{
+  display:inline-flex;align-items:center;gap:7px;flex:0 0 auto;
+  border:1.5px dashed var(--rule-2);border-radius:10px;
+  padding:7px 11px;background:var(--card);
+}
+.stk-lg .sl{
+  font-family:var(--mono);font-size:.66rem;font-weight:600;
+  color:var(--ink-3);letter-spacing:.03em;
+}
+.stk-lg input{
+  width:94px;min-width:0;border:0;background:transparent;padding:0;
+  font-family:var(--mono);font-size:16px;font-weight:600;
+  color:var(--ink-2);text-align:center;
+}
+.stk-lg input::placeholder{color:var(--ink-3);opacity:.45}
+.stk-lg:focus-within{outline:2px solid var(--g);outline-offset:1px}
+.stk-lg.has{border-style:solid;border-color:var(--g);background:var(--g-bg)}
+.stk-lg.has .sl,.stk-lg.has input{color:var(--g)}
+
 /* ---------- search ---------- */
 .seek{position:relative;margin:12px 0 4px}
 .seek input{
@@ -202,7 +251,7 @@ li{border-bottom:1px solid var(--rule)}
   color:var(--ink-3);letter-spacing:.03em;white-space:nowrap;
 }
 .stk input{
-  width:46px;min-width:0;border:0;background:transparent;padding:2px 0;
+  width:58px;min-width:0;border:0;background:transparent;padding:2px 0;
   font-family:var(--mono);font-size:16px;font-weight:600;
   color:var(--ink-2);text-align:center;
 }
@@ -290,6 +339,18 @@ pre.empty{color:var(--ink-3);font-style:italic}
 }
 .reset:hover{border-color:var(--maroon);color:var(--maroon)}
 
+.wipe{margin:34px 0 0;padding:16px 0 0;border-top:1px solid var(--rule)}
+.wipe h3{font-size:.68rem;font-weight:600;letter-spacing:.13em;color:var(--ink-3);margin:0 0 10px}
+.wipe .btns{display:flex;gap:7px;flex-wrap:wrap}
+.wipe button{
+  flex:1 1 30%;min-width:96px;font:inherit;font-size:.82rem;font-weight:600;
+  padding:11px 8px;border-radius:9px;cursor:pointer;
+  border:1px solid var(--rule-2);background:transparent;color:var(--ink-2);
+}
+.wipe button:hover{border-color:var(--maroon);color:var(--maroon)}
+.wipe button.arm{border-color:var(--maroon);background:var(--maroon-bg);color:var(--maroon)}
+.wipe button:disabled{opacity:.32;cursor:default}
+
 .toast{
   position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:60;
   background:var(--ink);color:var(--paper);font-size:.85rem;font-weight:600;
@@ -306,6 +367,14 @@ pre.empty{color:var(--ink-3);font-style:italic}
       <h1>콴안다오 발주판</h1>
       <div class="stamp" id="stamp"></div>
     </div>
+    <div class="tabs" role="tablist" aria-label="화면 전환">
+      <button type="button" role="tab" id="tab-stock" aria-selected="false" aria-controls="sheets">
+        시재 적기 <span class="tn" id="tn-stock">0</span>
+      </button>
+      <button type="button" role="tab" id="tab-order" aria-selected="true" aria-controls="sheets">
+        발주 담기 <span class="tn" id="tn-order">0</span>
+      </button>
+    </div>
     <nav class="tally" id="tally"></nav>
   </header>
 
@@ -314,7 +383,7 @@ pre.empty{color:var(--ink-3);font-style:italic}
     <button type="button" id="seek-x" aria-label="검색 지우기" hidden>×</button>
   </div>
 
-  <main id="sheets"></main>
+  <main id="sheets" class="mode-order"></main>
 </div>
 
 <div class="dock">
@@ -569,6 +638,7 @@ function build(){
     elSheets.appendChild(sec);
     drawExtra(g.id);
   });
+  elSheets.appendChild(wipeBlock());
 }
 
 /* ---- 수량 조절기 : [−][숫자][+] + 규격줄의 단위 칩 ---- */
@@ -680,9 +750,9 @@ function control(opts){
 }
 
 /* ---- 시재 칩 : 지금 남아있는 양 ---- */
-function stockChip(label, get, set){
+function stockChip(label, get, set, big){
   const box = document.createElement("span");
-  box.className = "stk";
+  box.className = big ? "stk-lg" : "stk";
   const tag = document.createElement("span");
   tag.className = "sl"; tag.textContent = "시재";
   const inp = document.createElement("input");
@@ -699,13 +769,27 @@ function stockChip(label, get, set){
   inp.addEventListener("input", ()=>{
     set(inp.value.trim());
     box.classList.toggle("has", !!inp.value.trim());
+    if(api.onChange) api.onChange();
     retally();
   });
-  inp.addEventListener("keydown", e=>{ if(e.key === "Enter"){ e.preventDefault(); inp.blur(); } });
+  inp.addEventListener("keydown", e=>{
+    if(e.key !== "Enter") return;
+    e.preventDefault();
+    if(!big){ inp.blur(); return; }
+    // 시재 적기에선 엔터로 다음 칸으로 넘어간다
+    const all = [...document.querySelectorAll(".stk-lg input")].filter(x=> x.offsetParent !== null);
+    const i = all.indexOf(inp);
+    if(i >= 0 && i + 1 < all.length){
+      const nx = all[i + 1];
+      nx.focus();
+      nx.scrollIntoView({ block:"center", behavior:"smooth" });
+    } else inp.blur();
+  });
 
   box.append(tag, inp);
+  const api = { box, paint, onChange:null };
   paint();
-  return { box, paint };
+  return api;
 }
 
 function rowOf(it){
@@ -729,9 +813,12 @@ function rowOf(it){
     },
   });
 
-  const stk = stockChip(it.name,
-    ()=> state.stock[it.id],
-    v=>{ if(v) state.stock[it.id] = v; else delete state.stock[it.id]; save(); });
+  const putStock = v=>{ if(v) state.stock[it.id] = v; else delete state.stock[it.id]; save(); };
+  const getStock = ()=> state.stock[it.id];
+  const stk   = stockChip(it.name, getStock, putStock, false);
+  const stkLg = stockChip(it.name, getStock, putStock, true);
+  stk.onChange = ()=> stkLg.paint();
+  stkLg.onChange = ()=> stk.paint();
 
   const meta = document.createElement("span");
   meta.className = "meta";
@@ -762,9 +849,9 @@ function rowOf(it){
     sync(); c.paint(); save(); retally();
   });
 
-  lab.append(tick, meta, c.step);
+  lab.append(tick, meta, stkLg.box, c.step);
   li.appendChild(lab);
-  li.sync = ()=>{ sync(); c.paint(); stk.paint(); };
+  li.sync = ()=>{ sync(); c.paint(); stk.paint(); stkLg.paint(); };
   li.sync();
   return li;
 }
@@ -804,6 +891,7 @@ function drawExtra(gid){
     d.className = "row on";
 
     const mark = document.createElement("span");
+    mark.className = "mark";
     mark.style.cssText = "justify-self:center;font-family:var(--mono);color:var(--g);font-size:1rem;font-weight:600";
     mark.textContent = "＋";
 
@@ -823,9 +911,12 @@ function drawExtra(gid){
       },
     });
 
-    const stk = stockChip(row.name,
-      ()=>{ const r = state.extra[gid][i]; return r ? r.stock : ""; },
-      v=>{ const r = state.extra[gid][i]; if(r){ r.stock = v; save(); } });
+    const getStock = ()=>{ const r = state.extra[gid][i]; return r ? r.stock : ""; };
+    const putStock = v=>{ const r = state.extra[gid][i]; if(r){ r.stock = v; save(); } };
+    const stk   = stockChip(row.name, getStock, putStock, false);
+    const stkLg = stockChip(row.name, getStock, putStock, true);
+    stk.onChange = ()=> stkLg.paint();
+    stkLg.onChange = ()=> stk.paint();
 
     const meta = document.createElement("span");
     meta.className = "meta";
@@ -843,7 +934,7 @@ function drawExtra(gid){
     x.setAttribute("aria-label", row.name+" 삭제");
     x.addEventListener("click", ()=>{ state.extra[gid].splice(i, 1); save(); drawExtra(gid); retally(); });
 
-    d.append(mark, meta, c.step);
+    d.append(mark, meta, stkLg.box, c.step);
     const wrap = document.createElement("div");
     wrap.style.cssText = "display:grid;grid-template-columns:1fr 30px;align-items:center";
     wrap.append(d, x);
@@ -918,23 +1009,120 @@ function textAll(){
   return b.length ? "발주 내역\n\n"+b.join("\n\n") : "";
 }
 
+function groupStockCount(g){
+  let n = 0;
+  g.subs.forEach(s=> s.items.forEach(it=>{ if((state.stock[it.id] || "").trim()) n++; }));
+  return n + state.extra[g.id].filter(r=> (r.stock||"").trim()).length;
+}
+function stockCount(){
+  return Object.keys(state.stock).length
+       + GROUPS.reduce((a,g)=> a + state.extra[g.id].filter(r=> (r.stock||"").trim()).length, 0);
+}
+
+/* ---------- 탭 ---------- */
+const MODE_KEY = "quananhdao.mode";
+let mode = "order";
+function setMode(m, remember){
+  mode = (m === "stock") ? "stock" : "order";
+  const main = document.getElementById("sheets");
+  main.classList.toggle("mode-stock", mode === "stock");
+  main.classList.toggle("mode-order", mode === "order");
+  document.getElementById("tab-stock").setAttribute("aria-selected", mode === "stock");
+  document.getElementById("tab-order").setAttribute("aria-selected", mode === "order");
+  if(remember !== false){ try{ localStorage.setItem(MODE_KEY, mode); }catch(e){} }
+  retally();
+}
+
 function retally(){
   let total = 0; const bits = [];
   GROUPS.forEach(g=>{
     const n = lines(g).length;
     total += n;
-    document.getElementById("n-"+g.id).textContent = n;
+    document.getElementById("n-"+g.id).textContent =
+      (mode === "stock") ? groupStockCount(g) : n;
     if(n) bits.push(g.head+" <b>"+n+"</b>");
   });
-  const sc = Object.keys(state.stock).length
-           + GROUPS.reduce((a,g)=> a + state.extra[g.id].filter(r=> (r.stock||"").trim()).length, 0);
+  const sc = stockCount();
+  document.getElementById("tn-stock").textContent = sc;
+  document.getElementById("tn-order").textContent = total;
+
   const el = document.getElementById("count");
-  if(total || sc){
+  if(mode === "stock"){
+    el.innerHTML = sc
+      ? "시재 <b>"+sc+"</b>품목 적음"
+      : "남아있는 양을 적어두세요";
+  }else if(total || sc){
     if(sc) bits.push('<span style="color:var(--ink-3)">시재 <b>'+sc+'</b></span>');
     el.innerHTML = bits.join(" · ");
   }else el.innerHTML = "＋ 를 눌러 담으세요";
+
+  const go = document.getElementById("copyall");
+  if(mode === "stock"){
+    go.textContent = "발주 담기 →";
+    go.dataset.label = "발주 담기 →";
+    go.disabled = false;
+  }else{
+    go.textContent = "전체 복사";
+    go.dataset.label = "전체 복사";
+    go.disabled = total === 0;
+  }
   document.getElementById("make").disabled = (total === 0 && sc === 0);
-  document.getElementById("copyall").disabled = total === 0;
+}
+
+/* ---------- 초기화 : 시재 / 발주 / 전부 ---------- */
+function wipeBlock(){
+  const box = document.createElement("div");
+  box.className = "wipe";
+  const h = document.createElement("h3");
+  h.textContent = "초기화";
+  const btns = document.createElement("div");
+  btns.className = "btns";
+  box.append(h, btns);
+
+  const jobs = [
+    ["시재만 지우기", "시재를 지웠습니다", ()=>{
+      state.stock = {};
+      GROUPS.forEach(g=> state.extra[g.id].forEach(r=> r.stock = ""));
+    }],
+    ["발주만 지우기", "발주를 지웠습니다", ()=>{
+      state.picked = {};
+      GROUPS.forEach(g=> state.extra[g.id] = []);
+    }],
+    ["전부 지우기", "전부 지웠습니다", ()=>{
+      state.picked = {}; state.stock = {};
+      state.extra = { meat:[], main:[], etc:[] };
+    }],
+  ];
+
+  jobs.forEach(([label, done, act])=>{
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = label;
+    let armed = false, timer = null;
+    const disarm = ()=>{
+      armed = false; clearTimeout(timer);
+      b.classList.remove("arm"); b.textContent = label;
+    };
+    b.addEventListener("click", ()=>{
+      if(!armed){
+        armed = true;
+        b.classList.add("arm");
+        b.textContent = "한 번 더 누르면 지워집니다";
+        clearTimeout(timer);
+        timer = setTimeout(disarm, 4000);
+        return;
+      }
+      disarm();
+      act(); save(); hydrate();
+      document.querySelectorAll(".wipe").forEach(w=>{
+        if(w !== box) w.querySelectorAll("button").forEach(x=> x.dispatchEvent(new Event("__reset")));
+      });
+      if(!scrim.hidden) closeSheet();
+      toast(done);
+    });
+    b.addEventListener("__reset", disarm);
+    btns.appendChild(b);
+  });
+  return box;
 }
 
 const scrim = document.getElementById("scrim");
@@ -961,13 +1149,7 @@ function openSheet(){
   sbody.appendChild(sep);
   GROUPS.forEach(g=> sbody.appendChild(block(g.head, g.c, textOf(g))));
 
-  const r = document.createElement("button");
-  r.type = "button"; r.className = "reset"; r.textContent = "담은 것 전부 비우기";
-  r.addEventListener("click", ()=>{
-    state = { picked:{}, extra:{meat:[],main:[],etc:[]}, stock:{}, at:Date.now() };
-    save(); hydrate(); closeSheet(); toast("전부 비웠습니다");
-  });
-  sbody.appendChild(r);
+  sbody.appendChild(wipeBlock());
 
   scrim.hidden = false;
   document.body.style.overflow = "hidden";
@@ -976,9 +1158,16 @@ function closeSheet(){ scrim.hidden = true; document.body.style.overflow = ""; }
 
 document.getElementById("make").addEventListener("click", openSheet);
 document.getElementById("copyall").addEventListener("click", e=>{
+  if(mode === "stock"){
+    setMode("order");
+    window.scrollTo({ top:0, behavior:"smooth" });
+    return;
+  }
   const t = textAll();
   if(t) copy(t, e.currentTarget);
 });
+document.getElementById("tab-stock").addEventListener("click", ()=> setMode("stock"));
+document.getElementById("tab-order").addEventListener("click", ()=> setMode("order"));
 document.getElementById("close").addEventListener("click", closeSheet);
 scrim.addEventListener("click", e=>{ if(e.target === scrim) closeSheet(); });
 document.addEventListener("keydown", e=>{ if(e.key === "Escape" && !scrim.hidden) closeSheet(); });
@@ -1046,7 +1235,9 @@ seekX.addEventListener("click", ()=>{ seek.value = ""; seek.dispatchEvent(new Ev
 const local = readLocal();
 if(local) state = local;
 build();
-retally();
+let firstMode = "stock";
+try{ firstMode = localStorage.getItem(MODE_KEY) || "stock"; }catch(e){}
+setMode(firstMode, false);
 
 /* 서버 저장 — 되면 쓰고, 안 되면 이 기기에만 */
 (function(){
