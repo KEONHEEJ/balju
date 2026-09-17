@@ -110,35 +110,35 @@ h1{font-family:var(--serif);font-weight:700;font-size:1.34rem;letter-spacing:-.0
 }
 .tabs button[aria-selected="true"] .tn{background:var(--paper);color:var(--ink)}
 
-/* 모드에 따라 행의 구성이 바뀐다 */
+/* 모드에 따라 행의 구성이 바뀐다 — 조작 방식은 양쪽이 똑같다 */
 .mode-stock .tick,
-.mode-stock .step,
-.mode-stock .specline,
+.mode-stock .grp-order,
+.mode-stock .stkview,
 .mode-stock .echo,
 .mode-stock .mark,
 .mode-stock .add{display:none}
-.mode-stock .row{grid-template-columns:minmax(0,1fr) auto;min-height:54px}
-.mode-order .stk-lg{display:none}
+.mode-stock .row{grid-template-columns:minmax(0,1fr) auto}
+.mode-order .grp-stock{display:none}
 
-/* 시재 전용 큰 입력칸 */
-.stk-lg{
-  display:inline-flex;align-items:center;gap:7px;flex:0 0 auto;
-  border:1.5px dashed var(--rule-2);border-radius:10px;
-  padding:7px 11px;background:var(--card);
+/* 단위와 수량은 한 덩어리로 붙어 있다 */
+.ctlgrp{display:flex;align-items:center;gap:5px;flex:0 0 auto}
+
+/* 발주 탭에서 적어둔 시재를 곁들여 보여준다 */
+.stkview{
+  align-self:flex-start;margin-top:3px;
+  font-family:var(--mono);font-size:.7rem;font-weight:600;
+  color:var(--g);white-space:nowrap;
+  border:1px solid var(--g);border-radius:6px;
+  padding:2px 7px;background:var(--g-bg);
 }
-.stk-lg .sl{
-  font-family:var(--mono);font-size:.66rem;font-weight:600;
-  color:var(--ink-3);letter-spacing:.03em;
-}
-.stk-lg input{
-  width:94px;min-width:0;border:0;background:transparent;padding:0;
-  font-family:var(--mono);font-size:16px;font-weight:600;
-  color:var(--ink-2);text-align:center;
-}
-.stk-lg input::placeholder{color:var(--ink-3);opacity:.45}
-.stk-lg:focus-within{outline:2px solid var(--g);outline-offset:1px}
-.stk-lg.has{border-style:solid;border-color:var(--g);background:var(--g-bg)}
-.stk-lg.has .sl,.stk-lg.has input{color:var(--g)}
+.stkview[hidden]{display:none}
+
+/* 시재가 적힌 행은 조절기에도 표시가 난다 */
+.row.rec .grp-stock .step{border-color:var(--g);background:var(--g-bg)}
+.row.rec .grp-stock .num{color:var(--ink)}
+.row.rec .grp-stock .step button{color:var(--g)}
+.row.rec .grp-stock .uni{border-color:var(--g);background:var(--g-bg)}
+.row.rec .grp-stock .uni .ut{color:var(--g)}
 
 /* ---------- search ---------- */
 .seek{position:relative;margin:12px 0 4px}
@@ -201,14 +201,14 @@ li{border-bottom:1px solid var(--rule)}
   background:var(--card);overflow:hidden;
 }
 .step button{
-  width:36px;border:0;background:transparent;cursor:pointer;
+  width:34px;border:0;background:transparent;cursor:pointer;
   color:var(--ink-2);font-family:var(--mono);font-size:1.2rem;font-weight:600;
   line-height:1;padding:0;-webkit-tap-highlight-color:transparent;
 }
 .step button:active{background:var(--g-bg)}
 .step button:focus-visible{outline:2px solid var(--g);outline-offset:-2px}
 .num{
-  width:50px;min-width:0;border:0;
+  width:46px;min-width:0;border:0;
   border-left:1px solid var(--rule);border-right:1px solid var(--rule);
   background:transparent;text-align:center;
   font-family:var(--mono);font-size:16px;font-weight:600;
@@ -219,19 +219,19 @@ li{border-bottom:1px solid var(--rule)}
 .row.on .num{color:var(--ink);border-color:color-mix(in srgb, var(--g) 26%, transparent)}
 .row.on .step button{color:var(--g)}
 
-/* 단위 칩 · 시재 칩 — 규격 아래 조작줄 */
-.specline{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:4px}
+/* 단위 고르개 — 수량 바로 옆, 눌러서 바꾼다 */
 .uni{
-  position:relative;display:inline-flex;align-items:center;flex:0 0 auto;
-  border:1px solid var(--rule-2);border-radius:6px;
-  padding:2px 16px 2px 7px;background:var(--card);
+  position:relative;display:inline-flex;align-items:center;justify-content:center;
+  flex:0 0 auto;min-width:54px;
+  border:1px solid var(--rule-2);border-radius:9px;
+  padding:9px 17px 9px 9px;background:var(--card);
 }
-.uni .ut{font-family:var(--mono);font-size:.71rem;font-weight:600;color:var(--ink-2);white-space:nowrap}
+.uni .ut{font-family:var(--mono);font-size:.79rem;font-weight:600;color:var(--ink-2);white-space:nowrap}
 .uni::after{
-  content:"▾";position:absolute;right:5px;top:50%;transform:translateY(-50%);
-  font-size:.55rem;color:var(--ink-3);pointer-events:none;
+  content:"▾";position:absolute;right:6px;top:50%;transform:translateY(-50%);
+  font-size:.6rem;color:var(--ink-3);pointer-events:none;
 }
-.uni.single{padding-right:7px}
+.uni.single{padding-right:9px;min-width:44px;opacity:.75}
 .uni.single::after{content:none}
 .uni select{
   position:absolute;inset:0;width:100%;height:100%;
@@ -240,25 +240,6 @@ li{border-bottom:1px solid var(--rule)}
 .uni:focus-within{outline:2px solid var(--g);outline-offset:1px}
 .row.on .uni{border-color:var(--g);background:var(--g-bg)}
 .row.on .uni .ut{color:var(--g)}
-
-/* 시재 — 지금 남아있는 양 */
-.stk{
-  display:inline-flex;align-items:center;gap:5px;flex:0 0 auto;
-  border:1px dashed var(--rule-2);border-radius:6px;padding:1px 7px;background:transparent;
-}
-.stk .sl{
-  font-family:var(--mono);font-size:.63rem;font-weight:600;
-  color:var(--ink-3);letter-spacing:.03em;white-space:nowrap;
-}
-.stk input{
-  width:58px;min-width:0;border:0;background:transparent;padding:2px 0;
-  font-family:var(--mono);font-size:16px;font-weight:600;
-  color:var(--ink-2);text-align:center;
-}
-.stk input::placeholder{color:var(--ink-3);opacity:.5}
-.stk:focus-within{outline:2px solid var(--g);outline-offset:1px}
-.stk.has{border-style:solid;border-color:var(--g)}
-.stk.has .sl,.stk.has input{color:var(--g)}
 
 /* ---------- custom rows ---------- */
 .add{display:flex;flex-wrap:wrap;gap:8px;margin:13px 0 0}
@@ -527,13 +508,17 @@ function units(spec){
 }
 
 /* 대장 정규화 — 안정적인 id 부여 */
+/* 시재는 품목 단위에 %(10씩)를 더해 고른다. 규격 접두사는 붙이지 않는다 */
+const stockUnits = us => us.map(u=>({ u:u.u, step:u.step, pre:"" })).concat([{ u:"%", step:10, pre:"" }]);
+
 GROUPS.forEach(g=>{
   let n = 0;
   g.subs = ITEMS[g.id].map(([title, rows])=>({
     title,
-    items: rows.map(([name, spec, us, def, note])=>({
-      id: g.id+"-"+(n++), name, spec, units: units(us), def, note: note||"",
-    })),
+    items: rows.map(([name, spec, us, def, note])=>{
+      const uu = units(us);
+      return { id: g.id+"-"+(n++), name, spec, units: uu, sunits: stockUnits(uu), def, note: note||"" };
+    }),
   }));
 });
 const BY_ID = {};
@@ -560,15 +545,34 @@ function normalize(o){
   });
   const arr = k => Array.isArray(o.extra && o.extra[k])
     ? o.extra[k].filter(r=> r && r.name).map(r=>({
-        name:String(r.name), n:Number(r.n)||1, u:String(r.u||"개"), stock:String(r.stock||"")
+        name:String(r.name), n:Number(r.n)||1, u:String(r.u||"개"),
+        stock: Array.isArray(r.stock) ? [Number(r.stock[0])||0, Number(r.stock[1])|0] : null
       }))
     : [];
   const stock = {};
   const ssrc = o.stock && typeof o.stock==="object" ? o.stock : {};
   Object.keys(ssrc).forEach(k=>{
-    if(!BY_ID[k]) return;
-    const v = String(ssrc[k] || "").trim();
-    if(v) stock[k] = v.slice(0, 8);
+    const it = BY_ID[k];
+    if(!it) return;
+    const v = ssrc[k];
+    if(Array.isArray(v)){
+      const n = Number(v[0]), ui = Number(v[1])|0;
+      if(n >= 0) stock[k] = [n, Math.min(Math.max(ui,0), it.sunits.length-1)];
+      return;
+    }
+    // 예전에 글자로 적어둔 시재를 옮겨온다
+    const t = String(v || "").trim();
+    if(!t) return;
+    const num = parseFloat(t.replace(/[^\d.]/g, ""));
+    if(!(num >= 0)) return;
+    const pct = t.indexOf("%") >= 0;
+    let ui = pct ? it.sunits.length - 1 : 0;
+    if(!pct){
+      const tail = t.replace(/[\d.\s]/g, "");
+      const hit = it.sunits.findIndex(u=> u.u === tail);
+      if(hit >= 0) ui = hit;
+    }
+    stock[k] = [num, ui];
   });
   return { picked, extra:{ meat:arr("meat"), main:arr("main"), etc:arr("etc") }, stock, at:Number(o.at)||0 };
 }
@@ -588,6 +592,9 @@ function save(){
 const fmt = n => String(Math.round(n*1000)/1000);
 /* 스테퍼에 보이는 값 */
 const shortOf = (it, n, ui) => fmt(n) + it.units[ui].u;
+/* 시재 표기 — 단위가 % 면 "20%", 아니면 "1.2봉" */
+const stockOf = (sunits, v)=> v ? fmt(v[0]) + sunits[v[1]].u : "";
+
 /* 카톡에 나가는 값 */
 const fullOf = (it, n, ui) => {
   const u = it.units[ui];
@@ -701,11 +708,14 @@ function control(opts){
   const bump = dir => e=>{
     e.preventDefault(); e.stopPropagation();
     const has = opts.get();
-    if(!has && dir < 0) return;               // 안 담은 것에 − 는 무시
+    if(!has && dir < 0) return;               // 아직 없는 것에 − 는 무시
     const cur = has || opts.fallback();
     const ui = cur[1];
     let n = cur[0];
     if(has) n = Math.round((n + dir * opts.units[ui].step) * 1000) / 1000;
+    if(n < 0) n = 0;
+    // 시재는 0 도 기록이다. 0 에서 한 번 더 − 하면 그때 지운다
+    if(opts.keepZero && has && n === 0 && cur[0] === 0){ opts.set(-1, ui); paint(); return; }
     commit(n, ui);
     paint();
   };
@@ -715,16 +725,17 @@ function control(opts){
   /* 직접 입력 */
   num.addEventListener("click", e=> e.stopPropagation());
   num.addEventListener("focus", ()=> setTimeout(()=>{ try{ num.select(); }catch(e){} }, 0));
+  const floor = opts.keepZero ? 0 : 1e-9;
   num.addEventListener("input", ()=>{
     const clean = num.value.replace(/[^\d.]/g, "").replace(/(\..*)\./g, "$1");
     if(clean !== num.value) num.value = clean;
     const n = parseFloat(clean);
-    if(n > 0) opts.set(Math.round(n * 1000) / 1000, curUi());   // 입력 중엔 변환 안 함
+    if(n >= floor) opts.set(Math.round(n * 1000) / 1000, curUi());
   });
   num.addEventListener("blur", ()=>{
     const n = parseFloat(num.value);
-    if(n > 0) commit(n, curUi());
-    else opts.set(0, curUi());                // 비우면 목록에서 뺀다
+    if(n >= floor) commit(n, curUi());
+    else opts.set(opts.keepZero ? -1 : 0, curUi());   // 비우면 기록을 지운다
     paint();
   });
   num.addEventListener("keydown", e=>{ if(e.key === "Enter"){ e.preventDefault(); num.blur(); } });
@@ -737,7 +748,10 @@ function control(opts){
       const cur = opts.get() || opts.fallback();
       const from = opts.units[cur[1]], to = opts.units[+sel.value];
       let n = cur[0];
-      if(from.u === "kg" && to.u === "g") n = n * 1000;
+      if(from.u === to.u){ /* 그대로 */ }
+      else if(to.u === "%") n = 50;                       // 비율로 바꾸면 절반에서 시작
+      else if(from.u === "%") n = 1;                      // 비율에서 실물 단위로
+      else if(from.u === "kg" && to.u === "g") n = n * 1000;
       else if(from.u === "g" && to.u === "kg") n = n / 1000;
       else if(n < to.step) n = to.step;
       opts.set(Math.round(n * 1000) / 1000, +sel.value);   // 고른 단위는 그대로 존중
@@ -749,49 +763,6 @@ function control(opts){
   return { step, uni, paint };
 }
 
-/* ---- 시재 칩 : 지금 남아있는 양 ---- */
-function stockChip(label, get, set, big){
-  const box = document.createElement("span");
-  box.className = big ? "stk-lg" : "stk";
-  const tag = document.createElement("span");
-  tag.className = "sl"; tag.textContent = "시재";
-  const inp = document.createElement("input");
-  inp.type = "text"; inp.maxLength = 8; inp.autocomplete = "off";
-  inp.placeholder = "—";
-  inp.setAttribute("aria-label", label + " 현재 시재");
-
-  const paint = ()=>{
-    const v = get() || "";
-    if(document.activeElement !== inp) inp.value = v;
-    box.classList.toggle("has", !!v.trim());
-  };
-  inp.addEventListener("click", e=> e.stopPropagation());
-  inp.addEventListener("input", ()=>{
-    set(inp.value.trim());
-    box.classList.toggle("has", !!inp.value.trim());
-    if(api.onChange) api.onChange();
-    retally();
-  });
-  inp.addEventListener("keydown", e=>{
-    if(e.key !== "Enter") return;
-    e.preventDefault();
-    if(!big){ inp.blur(); return; }
-    // 시재 적기에선 엔터로 다음 칸으로 넘어간다
-    const all = [...document.querySelectorAll(".stk-lg input")].filter(x=> x.offsetParent !== null);
-    const i = all.indexOf(inp);
-    if(i >= 0 && i + 1 < all.length){
-      const nx = all[i + 1];
-      nx.focus();
-      nx.scrollIntoView({ block:"center", behavior:"smooth" });
-    } else inp.blur();
-  });
-
-  box.append(tag, inp);
-  const api = { box, paint, onChange:null };
-  paint();
-  return api;
-}
-
 function rowOf(it){
   const li = document.createElement("li");
   const lab = document.createElement("label");
@@ -801,7 +772,8 @@ function rowOf(it){
   const tick = document.createElement("input");
   tick.type = "checkbox"; tick.className = "tick"; tick.id = "t-"+it.id;
 
-  const c = control({
+  /* 발주 — 얼마나 시킬지 */
+  const co = control({
     units: it.units,
     label: it.name,
     fallback: ()=> [it.def, 0],
@@ -813,12 +785,21 @@ function rowOf(it){
     },
   });
 
-  const putStock = v=>{ if(v) state.stock[it.id] = v; else delete state.stock[it.id]; save(); };
-  const getStock = ()=> state.stock[it.id];
-  const stk   = stockChip(it.name, getStock, putStock, false);
-  const stkLg = stockChip(it.name, getStock, putStock, true);
-  stk.onChange = ()=> stkLg.paint();
-  stkLg.onChange = ()=> stk.paint();
+
+  /* 시재 — 지금 얼마나 남았는지. 0 도 기록이다 */
+  const cs = control({
+    units: it.sunits,
+    label: it.name + " 시재",
+    keepZero: true,
+    fallback: ()=> [1, 0],
+    get: ()=> state.stock[it.id] || null,
+    set: (n, ui)=>{
+      if(n < 0) delete state.stock[it.id];
+      else state.stock[it.id] = [n, ui];
+      sync(); save(); retally();
+    },
+  });
+
 
   const meta = document.createElement("span");
   meta.className = "meta";
@@ -826,17 +807,29 @@ function rowOf(it){
   nm.className = "nm"; nm.textContent = it.name;
   const spec = document.createElement("span");
   spec.className = "spec"; spec.textContent = it.spec;
-  const line = document.createElement("span");
-  line.className = "specline";
-  line.append(c.uni, stk.box);
+  const view = document.createElement("span");
+  view.className = "stkview"; view.hidden = true;
   const echo = document.createElement("span");
   echo.className = "echo"; echo.hidden = true;
-  meta.append(nm, spec, line, echo);
+  meta.append(nm, spec, view, echo);
+
+  const grpO = document.createElement("span");
+  grpO.className = "ctlgrp grp-order";
+  grpO.append(co.uni, co.step);
+  const grpS = document.createElement("span");
+  grpS.className = "ctlgrp grp-stock";
+  grpS.append(cs.uni, cs.step);
 
   function sync(){
     const p = state.picked[it.id];
     tick.checked = !!p;
     lab.classList.toggle("on", !!p);
+
+    const sv = state.stock[it.id];
+    lab.classList.toggle("rec", !!sv);
+    if(sv){ view.hidden = false; view.textContent = "시재 " + stockOf(it.sunits, sv); }
+    else view.hidden = true;
+
     if(p && (it.note || it.units[p[1]].pre)){
       echo.hidden = false;
       echo.textContent = "→ " + fullOf(it, p[0], p[1]);
@@ -846,12 +839,12 @@ function rowOf(it){
   tick.addEventListener("change", ()=>{
     if(tick.checked) state.picked[it.id] = [it.def, 0];
     else delete state.picked[it.id];
-    sync(); c.paint(); save(); retally();
+    sync(); co.paint(); save(); retally();
   });
 
-  lab.append(tick, meta, stkLg.box, c.step);
+  lab.append(tick, meta, grpS, grpO);
   li.appendChild(lab);
-  li.sync = ()=>{ sync(); c.paint(); stk.paint(); stkLg.paint(); };
+  li.sync = ()=>{ sync(); co.paint(); cs.paint(); };
   li.sync();
   return li;
 }
@@ -871,7 +864,7 @@ function addForm(gid){
     const n = box.querySelector("#an-"+gid), q = box.querySelector("#aq-"+gid), u = box.querySelector("#au-"+gid);
     const name = n.value.trim();
     if(!name){ n.focus(); return; }
-    state.extra[gid].push({ name, n: Math.max(Number(q.value)||1, 0.001), u: u.value });
+    state.extra[gid].push({ name, n: Math.max(Number(q.value)||1, 0.001), u: u.value, stock: null });
     n.value = ""; q.value = "1"; n.focus();
     save(); drawExtra(gid); retally();
   };
@@ -885,6 +878,7 @@ function drawExtra(gid){
   const ul = document.getElementById("extra-"+gid);
   ul.innerHTML = "";
   const gu = units(GEN);
+  const su = stockUnits(gu);
   state.extra[gid].forEach((row, i)=>{
     const li = document.createElement("li");
     const d = document.createElement("div");
@@ -895,9 +889,8 @@ function drawExtra(gid){
     mark.style.cssText = "justify-self:center;font-family:var(--mono);color:var(--g);font-size:1rem;font-weight:600";
     mark.textContent = "＋";
 
-    const c = control({
-      units: gu,
-      label: row.name,
+    const co = control({
+      units: gu, label: row.name,
       fallback: ()=> [row.n, Math.max(0, gu.findIndex(u=> u.u === row.u))],
       get: ()=>{
         const r = state.extra[gid][i];
@@ -911,12 +904,19 @@ function drawExtra(gid){
       },
     });
 
-    const getStock = ()=>{ const r = state.extra[gid][i]; return r ? r.stock : ""; };
-    const putStock = v=>{ const r = state.extra[gid][i]; if(r){ r.stock = v; save(); } };
-    const stk   = stockChip(row.name, getStock, putStock, false);
-    const stkLg = stockChip(row.name, getStock, putStock, true);
-    stk.onChange = ()=> stkLg.paint();
-    stkLg.onChange = ()=> stk.paint();
+
+    const cs = control({
+      units: su, label: row.name + " 시재", keepZero: true,
+      fallback: ()=> [1, 0],
+      get: ()=>{ const r = state.extra[gid][i]; return (r && r.stock) ? r.stock : null; },
+      set: (n, k)=>{
+        const r = state.extra[gid][i];
+        if(!r) return;
+        r.stock = (n < 0) ? null : [n, k];
+        paintView(); save(); retally();
+      },
+    });
+
 
     const meta = document.createElement("span");
     meta.className = "meta";
@@ -924,17 +924,32 @@ function drawExtra(gid){
     nm.className = "nm"; nm.textContent = row.name;
     const sp = document.createElement("span");
     sp.className = "spec"; sp.textContent = "직접 추가";
-    const line = document.createElement("span");
-    line.className = "specline";
-    line.append(c.uni, stk.box);
-    meta.append(nm, sp, line);
+    const view = document.createElement("span");
+    view.className = "stkview"; view.hidden = true;
+    meta.append(nm, sp, view);
+
+    const grpO = document.createElement("span");
+    grpO.className = "ctlgrp grp-order";
+    grpO.append(co.uni, co.step);
+    const grpS = document.createElement("span");
+    grpS.className = "ctlgrp grp-stock";
+    grpS.append(cs.uni, cs.step);
+
+    function paintView(){
+      const r = state.extra[gid][i];
+      const sv = r && r.stock;
+      d.classList.toggle("rec", !!sv);
+      if(sv){ view.hidden = false; view.textContent = "시재 " + stockOf(su, sv); }
+      else view.hidden = true;
+    }
+    paintView();
 
     const x = document.createElement("button");
     x.type = "button"; x.className = "kill"; x.textContent = "×";
     x.setAttribute("aria-label", row.name+" 삭제");
     x.addEventListener("click", ()=>{ state.extra[gid].splice(i, 1); save(); drawExtra(gid); retally(); });
 
-    d.append(mark, meta, stkLg.box, c.step);
+    d.append(mark, meta, grpS, grpO);
     const wrap = document.createElement("div");
     wrap.style.cssText = "display:grid;grid-template-columns:1fr 30px;align-items:center";
     wrap.append(d, x);
@@ -979,14 +994,15 @@ function reportText(){
     const rows = [];
     g.subs.forEach(s=> s.items.forEach(it=>{
       const p = state.picked[it.id];
-      const st = (state.stock[it.id] || "").trim();
+      const st = stockOf(it.sunits, state.stock[it.id]);
       if(!p && !st) return;
-      if(p) rows.push(it.name+" — 현재 "+(st || "없음")+" / 추가 "+fullOf(it, p[0], p[1]));
+      if(p) rows.push(it.name+" — 현재 "+(st || "미확인")+" / 추가 "+fullOf(it, p[0], p[1]));
       else  idle.push(it.name+" — 현재 "+st);
     }));
+    const su = stockUnits(units(GEN));
     state.extra[g.id].forEach(r=>{
-      const st = (r.stock || "").trim();
-      rows.push(r.name+" — 현재 "+(st || "없음")+" / 추가 "+fmt(r.n)+r.u);
+      const st = stockOf(su, r.stock);
+      rows.push(r.name+" — 현재 "+(st || "미확인")+" / 추가 "+fmt(r.n)+r.u);
     });
     if(rows.length) blocks.push(g.out+"\n"+rows.join("\n"));
   });
@@ -998,9 +1014,7 @@ function reportText(){
 
   let n = 0;
   GROUPS.forEach(g=> n += lines(g).length);
-  const sc = Object.keys(state.stock).length
-           + GROUPS.reduce((a,g)=> a + state.extra[g.id].filter(r=> (r.stock||"").trim()).length, 0);
-  out += "\n\n발주 "+n+"품목 · 시재 기록 "+sc+"품목";
+  out += "\n\n발주 "+n+"품목 · 시재 기록 "+stockCount()+"품목";
   return out;
 }
 
@@ -1011,12 +1025,12 @@ function textAll(){
 
 function groupStockCount(g){
   let n = 0;
-  g.subs.forEach(s=> s.items.forEach(it=>{ if((state.stock[it.id] || "").trim()) n++; }));
-  return n + state.extra[g.id].filter(r=> (r.stock||"").trim()).length;
+  g.subs.forEach(s=> s.items.forEach(it=>{ if(state.stock[it.id]) n++; }));
+  return n + state.extra[g.id].filter(r=> r.stock).length;
 }
 function stockCount(){
   return Object.keys(state.stock).length
-       + GROUPS.reduce((a,g)=> a + state.extra[g.id].filter(r=> (r.stock||"").trim()).length, 0);
+       + GROUPS.reduce((a,g)=> a + state.extra[g.id].filter(r=> r.stock).length, 0);
 }
 
 /* ---------- 탭 ---------- */
@@ -1082,7 +1096,7 @@ function wipeBlock(){
   const jobs = [
     ["시재만 지우기", "시재를 지웠습니다", ()=>{
       state.stock = {};
-      GROUPS.forEach(g=> state.extra[g.id].forEach(r=> r.stock = ""));
+      GROUPS.forEach(g=> state.extra[g.id].forEach(r=> r.stock = null));
     }],
     ["발주만 지우기", "발주를 지웠습니다", ()=>{
       state.picked = {};
