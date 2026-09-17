@@ -170,8 +170,8 @@ li{border-bottom:1px solid var(--rule)}
 .row.on .num{color:var(--ink);border-color:color-mix(in srgb, var(--g) 26%, transparent)}
 .row.on .step button{color:var(--g)}
 
-/* 단위 칩 — 규격줄에 붙는다 */
-.specline{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:2px}
+/* 단위 칩 · 시재 칩 — 규격 아래 조작줄 */
+.specline{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:4px}
 .uni{
   position:relative;display:inline-flex;align-items:center;flex:0 0 auto;
   border:1px solid var(--rule-2);border-radius:6px;
@@ -191,6 +191,25 @@ li{border-bottom:1px solid var(--rule)}
 .uni:focus-within{outline:2px solid var(--g);outline-offset:1px}
 .row.on .uni{border-color:var(--g);background:var(--g-bg)}
 .row.on .uni .ut{color:var(--g)}
+
+/* 시재 — 지금 남아있는 양 */
+.stk{
+  display:inline-flex;align-items:center;gap:5px;flex:0 0 auto;
+  border:1px dashed var(--rule-2);border-radius:6px;padding:1px 7px;background:transparent;
+}
+.stk .sl{
+  font-family:var(--mono);font-size:.63rem;font-weight:600;
+  color:var(--ink-3);letter-spacing:.03em;white-space:nowrap;
+}
+.stk input{
+  width:46px;min-width:0;border:0;background:transparent;padding:2px 0;
+  font-family:var(--mono);font-size:16px;font-weight:600;
+  color:var(--ink-2);text-align:center;
+}
+.stk input::placeholder{color:var(--ink-3);opacity:.5}
+.stk:focus-within{outline:2px solid var(--g);outline-offset:1px}
+.stk.has{border-style:solid;border-color:var(--g)}
+.stk.has .sl,.stk.has input{color:var(--g)}
 
 /* ---------- custom rows ---------- */
 .add{display:flex;flex-wrap:wrap;gap:8px;margin:13px 0 0}
@@ -302,7 +321,7 @@ pre.empty{color:var(--ink-3);font-style:italic}
   <div class="dock-in">
     <div class="ct" id="count">＋ 를 눌러 담으세요</div>
     <div class="dock-row">
-      <button type="button" class="ghost" id="make" disabled>발주처별</button>
+      <button type="button" class="ghost" id="make" disabled>보고서</button>
       <button type="button" class="solid" id="copyall" disabled>전체 복사</button>
     </div>
   </div>
@@ -311,7 +330,7 @@ pre.empty{color:var(--ink-3);font-style:italic}
 <div class="scrim" id="scrim" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-h">
     <div class="sheet-top">
-      <h3 id="sheet-h">발주 문구</h3>
+      <h3 id="sheet-h">복사하기</h3>
       <button type="button" id="close" aria-label="닫기">×</button>
     </div>
     <div class="sheet-body" id="sheet-body"></div>
@@ -455,7 +474,7 @@ GROUPS.forEach(g=> g.subs.forEach(s=> s.items.forEach(it=> BY_ID[it.id] = it)));
    상태 —  picked[id] = [수량, 단위번호]      extra[gid] = [{name,n,u}]
 ================================================================== */
 const LS = "quananhdao.order.v2";
-let state = { picked:{}, extra:{meat:[],main:[],etc:[]}, at:0 };
+let state = { picked:{}, extra:{meat:[],main:[],etc:[]}, stock:{}, at:0 };
 let dbRef = null, saveTimer = null;
 
 function normalize(o){
@@ -471,9 +490,18 @@ function normalize(o){
     picked[k] = [n, Math.min(Math.max(ui,0), BY_ID[k].units.length-1)];
   });
   const arr = k => Array.isArray(o.extra && o.extra[k])
-    ? o.extra[k].filter(r=> r && r.name).map(r=>({ name:String(r.name), n:Number(r.n)||1, u:String(r.u||"개") }))
+    ? o.extra[k].filter(r=> r && r.name).map(r=>({
+        name:String(r.name), n:Number(r.n)||1, u:String(r.u||"개"), stock:String(r.stock||"")
+      }))
     : [];
-  return { picked, extra:{ meat:arr("meat"), main:arr("main"), etc:arr("etc") }, at:Number(o.at)||0 };
+  const stock = {};
+  const ssrc = o.stock && typeof o.stock==="object" ? o.stock : {};
+  Object.keys(ssrc).forEach(k=>{
+    if(!BY_ID[k]) return;
+    const v = String(ssrc[k] || "").trim();
+    if(v) stock[k] = v.slice(0, 8);
+  });
+  return { picked, extra:{ meat:arr("meat"), main:arr("main"), etc:arr("etc") }, stock, at:Number(o.at)||0 };
 }
 function readLocal(){
   try{ const r = localStorage.getItem(LS); if(r) return normalize(JSON.parse(r)); }catch(e){}
@@ -651,6 +679,35 @@ function control(opts){
   return { step, uni, paint };
 }
 
+/* ---- 시재 칩 : 지금 남아있는 양 ---- */
+function stockChip(label, get, set){
+  const box = document.createElement("span");
+  box.className = "stk";
+  const tag = document.createElement("span");
+  tag.className = "sl"; tag.textContent = "시재";
+  const inp = document.createElement("input");
+  inp.type = "text"; inp.maxLength = 8; inp.autocomplete = "off";
+  inp.placeholder = "—";
+  inp.setAttribute("aria-label", label + " 현재 시재");
+
+  const paint = ()=>{
+    const v = get() || "";
+    if(document.activeElement !== inp) inp.value = v;
+    box.classList.toggle("has", !!v.trim());
+  };
+  inp.addEventListener("click", e=> e.stopPropagation());
+  inp.addEventListener("input", ()=>{
+    set(inp.value.trim());
+    box.classList.toggle("has", !!inp.value.trim());
+    retally();
+  });
+  inp.addEventListener("keydown", e=>{ if(e.key === "Enter"){ e.preventDefault(); inp.blur(); } });
+
+  box.append(tag, inp);
+  paint();
+  return { box, paint };
+}
+
 function rowOf(it){
   const li = document.createElement("li");
   const lab = document.createElement("label");
@@ -672,18 +729,22 @@ function rowOf(it){
     },
   });
 
+  const stk = stockChip(it.name,
+    ()=> state.stock[it.id],
+    v=>{ if(v) state.stock[it.id] = v; else delete state.stock[it.id]; save(); });
+
   const meta = document.createElement("span");
   meta.className = "meta";
   const nm = document.createElement("span");
   nm.className = "nm"; nm.textContent = it.name;
-  const line = document.createElement("span");
-  line.className = "specline";
   const spec = document.createElement("span");
   spec.className = "spec"; spec.textContent = it.spec;
-  line.append(c.uni, spec);
+  const line = document.createElement("span");
+  line.className = "specline";
+  line.append(c.uni, stk.box);
   const echo = document.createElement("span");
   echo.className = "echo"; echo.hidden = true;
-  meta.append(nm, line, echo);
+  meta.append(nm, spec, line, echo);
 
   function sync(){
     const p = state.picked[it.id];
@@ -703,7 +764,7 @@ function rowOf(it){
 
   lab.append(tick, meta, c.step);
   li.appendChild(lab);
-  li.sync = ()=>{ sync(); c.paint(); };
+  li.sync = ()=>{ sync(); c.paint(); stk.paint(); };
   li.sync();
   return li;
 }
@@ -755,21 +816,27 @@ function drawExtra(gid){
         return r ? [r.n, Math.max(0, gu.findIndex(u=> u.u === r.u))] : null;
       },
       set: (n, k)=>{
-        if(n > 0){ state.extra[gid][i] = { name: row.name, n, u: gu[k].u }; save(); retally(); }
+        const r = state.extra[gid][i];
+        if(!r) return;
+        if(n > 0){ r.n = n; r.u = gu[k].u; save(); retally(); }
         else { state.extra[gid].splice(i, 1); save(); drawExtra(gid); retally(); }
       },
     });
+
+    const stk = stockChip(row.name,
+      ()=>{ const r = state.extra[gid][i]; return r ? r.stock : ""; },
+      v=>{ const r = state.extra[gid][i]; if(r){ r.stock = v; save(); } });
 
     const meta = document.createElement("span");
     meta.className = "meta";
     const nm = document.createElement("span");
     nm.className = "nm"; nm.textContent = row.name;
-    const line = document.createElement("span");
-    line.className = "specline";
     const sp = document.createElement("span");
     sp.className = "spec"; sp.textContent = "직접 추가";
-    line.append(c.uni, sp);
-    meta.append(nm, line);
+    const line = document.createElement("span");
+    line.className = "specline";
+    line.append(c.uni, stk.box);
+    meta.append(nm, sp, line);
 
     const x = document.createElement("button");
     x.type = "button"; x.className = "kill"; x.textContent = "×";
@@ -807,6 +874,45 @@ function textOf(g){
   const l = lines(g);
   return l.length ? "발주 내역\n\n"+g.out+"\n"+l.join("\n") : "";
 }
+/* 오늘 날짜 도장 */
+function stamp(){
+  const d = new Date(), wd = ["일","월","화","수","목","금","토"][d.getDay()];
+  return d.getFullYear()+"."+String(d.getMonth()+1).padStart(2,"0")+"."
+       + String(d.getDate()).padStart(2,"0")+" ("+wd+")";
+}
+
+/* 시재 + 발주량을 함께 적은 보고서 */
+function reportText(){
+  const blocks = [], idle = [];
+  GROUPS.forEach(g=>{
+    const rows = [];
+    g.subs.forEach(s=> s.items.forEach(it=>{
+      const p = state.picked[it.id];
+      const st = (state.stock[it.id] || "").trim();
+      if(!p && !st) return;
+      if(p) rows.push(it.name+" — 현재 "+(st || "없음")+" / 추가 "+fullOf(it, p[0], p[1]));
+      else  idle.push(it.name+" — 현재 "+st);
+    }));
+    state.extra[g.id].forEach(r=>{
+      const st = (r.stock || "").trim();
+      rows.push(r.name+" — 현재 "+(st || "없음")+" / 추가 "+fmt(r.n)+r.u);
+    });
+    if(rows.length) blocks.push(g.out+"\n"+rows.join("\n"));
+  });
+  if(!blocks.length && !idle.length) return "";
+
+  let out = "발주 보고 · "+stamp();
+  if(blocks.length) out += "\n\n"+blocks.join("\n\n");
+  if(idle.length)   out += "\n\n※ 시재만 확인 (이번엔 발주 안 함)\n"+idle.join("\n");
+
+  let n = 0;
+  GROUPS.forEach(g=> n += lines(g).length);
+  const sc = Object.keys(state.stock).length
+           + GROUPS.reduce((a,g)=> a + state.extra[g.id].filter(r=> (r.stock||"").trim()).length, 0);
+  out += "\n\n발주 "+n+"품목 · 시재 기록 "+sc+"품목";
+  return out;
+}
+
 function textAll(){
   const b = GROUPS.map(g=>{ const l = lines(g); return l.length ? g.out+"\n"+l.join("\n") : ""; }).filter(Boolean);
   return b.length ? "발주 내역\n\n"+b.join("\n\n") : "";
@@ -820,8 +926,14 @@ function retally(){
     document.getElementById("n-"+g.id).textContent = n;
     if(n) bits.push(g.head+" <b>"+n+"</b>");
   });
-  document.getElementById("count").innerHTML = total ? bits.join(" · ") : "＋ 를 눌러 담으세요";
-  document.getElementById("make").disabled = total === 0;
+  const sc = Object.keys(state.stock).length
+           + GROUPS.reduce((a,g)=> a + state.extra[g.id].filter(r=> (r.stock||"").trim()).length, 0);
+  const el = document.getElementById("count");
+  if(total || sc){
+    if(sc) bits.push('<span style="color:var(--ink-3)">시재 <b>'+sc+'</b></span>');
+    el.innerHTML = bits.join(" · ");
+  }else el.innerHTML = "＋ 를 눌러 담으세요";
+  document.getElementById("make").disabled = (total === 0 && sc === 0);
   document.getElementById("copyall").disabled = total === 0;
 }
 
@@ -841,7 +953,8 @@ function block(title, accent, text){
 }
 function openSheet(){
   sbody.innerHTML = "";
-  sbody.appendChild(block("전체", "var(--ink)", textAll()));
+  sbody.appendChild(block("전체 발주 문구", "var(--ink)", textAll()));
+  sbody.appendChild(block("발주 보고 (시재 포함)", "var(--jade)", reportText()));
   const sep = document.createElement("p");
   sep.className = "sep";
   sep.textContent = "발주처가 달라 따로 보낼 때";
@@ -851,7 +964,7 @@ function openSheet(){
   const r = document.createElement("button");
   r.type = "button"; r.className = "reset"; r.textContent = "담은 것 전부 비우기";
   r.addEventListener("click", ()=>{
-    state = { picked:{}, extra:{meat:[],main:[],etc:[]}, at:Date.now() };
+    state = { picked:{}, extra:{meat:[],main:[],etc:[]}, stock:{}, at:Date.now() };
     save(); hydrate(); closeSheet(); toast("전부 비웠습니다");
   });
   sbody.appendChild(r);
