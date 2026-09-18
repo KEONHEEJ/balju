@@ -1,30 +1,11 @@
-const CACHE = "balju-v8";
-const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
-
-self.addEventListener("install", e=>{
-  e.waitUntil(caches.open(CACHE).then(c=> c.addAll(SHELL)).then(()=> self.skipWaiting()));
-});
-self.addEventListener("activate", e=>{
+// 발주판은 Vercel 로 옮겼다. 이 워커는 스스로 물러난다.
+self.addEventListener("install", () => self.skipWaiting());
+self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches.keys()
-      .then(ks=> Promise.all(ks.filter(k=> k !== CACHE).map(k=> caches.delete(k))))
-      .then(()=> self.clients.claim())
-  );
-});
-self.addEventListener("fetch", e=>{
-  if(e.request.method !== "GET") return;
-  e.respondWith(
-    caches.match(e.request).then(hit=>{
-      if(hit) return hit;
-      return fetch(e.request).then(res=>{
-        const host = new URL(e.request.url).hostname;
-        const keep = new URL(e.request.url).origin === location.origin || host.startsWith("fonts.g");
-        if(res && res.ok && keep){
-          const copy = res.clone();
-          caches.open(CACHE).then(c=> c.put(e.request, copy));
-        }
-        return res;
-      }).catch(()=> caches.match("./index.html"));
-    })
+      .then((ks) => Promise.all(ks.map((k) => caches.delete(k))))
+      .then(() => self.registration.unregister())
+      .then(() => self.clients.matchAll())
+      .then((cs) => cs.forEach((c) => c.navigate(c.url)))
   );
 });
