@@ -188,6 +188,7 @@ li{border-bottom:1px solid var(--rule)}
 .nm{font-size:.94rem;font-weight:500;color:var(--ink);overflow-wrap:anywhere}
 .row.on .nm{font-weight:700}
 .spec{font-family:var(--mono);font-size:.7rem;color:var(--ink-3);overflow-wrap:anywhere;line-height:1.35}
+.usual{font-weight:700;color:var(--ink-2)}
 .echo{
   font-family:var(--mono);font-size:.72rem;font-weight:600;color:var(--g);
   line-height:1.35;overflow-wrap:anywhere;
@@ -497,8 +498,9 @@ const GROUPS = [
   { id:"etc",  c:"var(--amber)",  bg:"var(--amber-bg)",  head:"별도 구매",     out:"[별도 구매]",    memo:"명세서에 없음<br>따로 구매" },
 ];
 
-/* 직접 추가용 단위 */
-const GEN = "개|kg|g:100|박스|통|팩|봉지|단|판|캔|병|망|덩이|자루|봉";
+/* 단위는 모든 품목이 똑같은 목록에서 고른다.
+   품목마다 다른 것은 "기본으로 뜨는 단위"와 "한 번에 움직이는 폭"뿐이다. */
+const ALL_UNITS = "개|박스|kg|g:100|통|팩|봉지|봉|단|판|캔|망|덩이|자루|포|L|ml:100|%:10";
 
 function units(spec){
   return spec.split("|").map(s=>{
@@ -508,16 +510,34 @@ function units(spec){
 }
 
 /* 대장 정규화 — 안정적인 id 부여 */
-/* 시재는 품목 단위에 %(10씩)를 더해 고른다. 규격 접두사는 붙이지 않는다 */
-const stockUnits = us => us.map(u=>({ u:u.u, step:u.step, pre:"" })).concat([{ u:"%", step:10, pre:"" }]);
+const ALL = units(ALL_UNITS);
+const ALL_STEP = {};
+ALL.forEach(u=> ALL_STEP[u.u] = u.step);
+const idxOf = label => Math.max(0, ALL.findIndex(u=> u.u === label));
+
+/* 예전 표기(  "개^3kg*|박스"  )에서 기본 단위·접두 규격·증감폭 예외만 뽑아낸다 */
+function shape(us){
+  const old = units(us);
+  const ovr = {};
+  old.forEach(u=>{ if(ALL_STEP[u.u] && u.step !== ALL_STEP[u.u]) ovr[u.u] = u.step; });
+  return { defU: old[0].u, pre: old[0].pre || "", ovr };
+}
 
 GROUPS.forEach(g=>{
   let n = 0;
   g.subs = ITEMS[g.id].map(([title, rows])=>({
     title,
     items: rows.map(([name, spec, us, def, note])=>{
-      const uu = units(us);
-      return { id: g.id+"-"+(n++), name, spec, units: uu, sunits: stockUnits(uu), def, note: note||"" };
+      const sh = shape(us);
+      const di = idxOf(sh.defU);
+      return {
+        id: g.id+"-"+(n++), name, spec, def, note: note||"",
+        defU: sh.defU, pre: sh.pre, defIdx: di,
+        // 발주 단위 — 접두 규격은 기본 단위일 때만 붙는다
+        units: ALL.map(u=>({ u:u.u, step: sh.ovr[u.u] || u.step, pre: (u.u === sh.defU ? sh.pre : "") })),
+        // 시재 단위 — 접두 규격 없이
+        sunits: ALL.map(u=>({ u:u.u, step: sh.ovr[u.u] || u.step, pre:"" })),
+      };
     }),
   }));
 });
@@ -527,7 +547,7 @@ GROUPS.forEach(g=> g.subs.forEach(s=> s.items.forEach(it=> BY_ID[it.id] = it)));
 /* ==================================================================
    상태 —  picked[id] = [수량, 단위번호]      extra[gid] = [{name,n,u}]
 ================================================================== */
-const LS = "quananhdao.order.v2";
+const LS = "quananhdao.order.v3";
 let state = { picked:{}, extra:{meat:[],main:[],etc:[]}, stock:{}, at:0 };
 let dbRef = null, saveTimer = null;
 
@@ -592,6 +612,9 @@ function save(){
 const fmt = n => String(Math.round(n*1000)/1000);
 /* 스테퍼에 보이는 값 */
 const shortOf = (it, n, ui) => fmt(n) + it.units[ui].u;
+/* 명세서 기준 통상 발주량 — 발주할 때 참고한다 */
+const usualOf = it => it.pre + fmt(it.def) + it.defU;
+
 /* 시재 표기 — 단위가 % 면 "20%", 아니면 "1.2봉" */
 const stockOf = (sunits, v)=> v ? fmt(v[0]) + sunits[v[1]].u : "";
 
@@ -776,7 +799,7 @@ function rowOf(it){
   const co = control({
     units: it.units,
     label: it.name,
-    fallback: ()=> [it.def, 0],
+    fallback: ()=> [it.def, it.defIdx],
     get: ()=> state.picked[it.id] || null,
     set: (n, ui)=>{
       if(n > 0) state.picked[it.id] = [n, ui];
@@ -791,7 +814,7 @@ function rowOf(it){
     units: it.sunits,
     label: it.name + " 시재",
     keepZero: true,
-    fallback: ()=> [1, 0],
+    fallback: ()=> [1, it.defIdx],
     get: ()=> state.stock[it.id] || null,
     set: (n, ui)=>{
       if(n < 0) delete state.stock[it.id];
@@ -806,7 +829,12 @@ function rowOf(it){
   const nm = document.createElement("span");
   nm.className = "nm"; nm.textContent = it.name;
   const spec = document.createElement("span");
-  spec.className = "spec"; spec.textContent = it.spec;
+  spec.className = "spec";
+  spec.textContent = it.spec + " · ";
+  const usual = document.createElement("b");
+  usual.className = "usual";
+  usual.textContent = "보통 " + usualOf(it);
+  spec.appendChild(usual);
   const view = document.createElement("span");
   view.className = "stkview"; view.hidden = true;
   const echo = document.createElement("span");
@@ -837,7 +865,7 @@ function rowOf(it){
   }
 
   tick.addEventListener("change", ()=>{
-    if(tick.checked) state.picked[it.id] = [it.def, 0];
+    if(tick.checked) state.picked[it.id] = [it.def, it.defIdx];
     else delete state.picked[it.id];
     sync(); co.paint(); save(); retally();
   });
@@ -853,7 +881,7 @@ function rowOf(it){
 function addForm(gid){
   const box = document.createElement("div");
   box.className = "add";
-  const gu = units(GEN);
+  const gu = ALL;
   box.innerHTML =
     '<input class="f-name" type="text" id="an-'+gid+'" placeholder="직접 추가 — 품목명" autocomplete="off">'+
     '<input class="f-n" type="number" id="aq-'+gid+'" value="1" min="0" step="any" inputmode="decimal" aria-label="수량">'+
@@ -877,8 +905,7 @@ function addForm(gid){
 function drawExtra(gid){
   const ul = document.getElementById("extra-"+gid);
   ul.innerHTML = "";
-  const gu = units(GEN);
-  const su = stockUnits(gu);
+  const gu = ALL, su = ALL;
   state.extra[gid].forEach((row, i)=>{
     const li = document.createElement("li");
     const d = document.createElement("div");
@@ -924,6 +951,10 @@ function drawExtra(gid){
     nm.className = "nm"; nm.textContent = row.name;
     const sp = document.createElement("span");
     sp.className = "spec"; sp.textContent = "직접 추가";
+    const su2 = document.createElement("b");
+    su2.className = "usual";
+    su2.textContent = "";
+    sp.appendChild(su2);
     const view = document.createElement("span");
     view.className = "stkview"; view.hidden = true;
     meta.append(nm, sp, view);
@@ -999,7 +1030,7 @@ function reportText(){
       if(p) rows.push(it.name+" — 현재 "+(st || "미확인")+" / 추가 "+fullOf(it, p[0], p[1]));
       else  idle.push(it.name+" — 현재 "+st);
     }));
-    const su = stockUnits(units(GEN));
+    const su = ALL;
     state.extra[g.id].forEach(r=>{
       const st = stockOf(su, r.stock);
       rows.push(r.name+" — 현재 "+(st || "미확인")+" / 추가 "+fmt(r.n)+r.u);
